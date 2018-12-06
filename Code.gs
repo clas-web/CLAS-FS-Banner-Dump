@@ -20,7 +20,7 @@ function onOpen() {
   .addItem('Return to Overview', 'overview')
   .addItem('Import Latest', 'importLatestCSVFromGmail')
   .addItem('Update Changelog', 'update')
-  .addItem('Update Changelog with New Employees Only!', 'updateNewEmployees')
+  //.addItem('Update Changelog with New Employees Only!', 'updateNewEmployees')
   .addItem('Status', 'status')
   .addToUi();
 }
@@ -404,6 +404,12 @@ function update(){
   var updatedFormula;
   
   //!!!!--------------------------------------------------!!!!!
+  
+  var emailArray = [];
+  var rowArray = [];
+  rowArray.push(ssHistory.getRange(2,1,1,12).getValues()); //get header row for email to Alex
+  
+  
   //Adds the changes per category, filters by rows with '@' in them which should be all employees (email addresses), skips blank rows  
   ssFS_Banner.toast('Updating Change Log...', 'Appending employees with modified statuses to History sheet', 10);
   for (var i = 0; i < sDataNew.length; i++){
@@ -413,11 +419,21 @@ function update(){
         ssHistory.getRange(ssHistory.getLastRow(), 10).setValue('New Employee');
         ssHistory.getRange(ssHistory.getLastRow(), 11).setValue(email_date); 
         ssHistory.getRange(1, 12).copyTo(ssHistory.getRange(ssHistory.getLastRow(), 12));
+        
         //Get employee's position number, paste as plain text
         plainText = ssHistory.getRange(ssHistory.getLastRow(), 12).getDisplayValue();
         Logger.log("plainText is " + plainText);
         ssHistory.getRange(ssHistory.getLastRow(), 12).clear();
         ssHistory.getRange(ssHistory.getLastRow(), 12).setValue(plainText);
+        
+        //Only send full time employees
+        if (ssHistory.getRange(ssHistory.getLastRow(), 5).getDisplayValue() == "SHRA Permanent" ||            
+              ssHistory.getRange(ssHistory.getLastRow(), 5).getDisplayValue() == "EHRA Staff"|| 
+                ssHistory.getRange(ssHistory.getLastRow(), 5).getDisplayValue() == "EHRA 9 Month Faculty"|| 
+                  ssHistory.getRange(ssHistory.getLastRow(), 5).getDisplayValue() == "EHRA 12 Month Faculty"){
+                    //push this row to array for email to Alex
+                    rowArray.push(ssHistory.getRange(ssHistory.getLastRow(),1,1,12).getValues()); 
+                  }
       }
     }
   }
@@ -430,11 +446,21 @@ function update(){
         ssHistory.getRange(ssHistory.getLastRow(), 10).setValue('Employee Changed Departments');
         ssHistory.getRange(ssHistory.getLastRow(), 11).setValue(email_date);
         ssHistory.getRange(1, 12).copyTo(ssHistory.getRange(ssHistory.getLastRow(), 12));
+        
         //Get employee's position number, paste as plain text
         plainText = ssHistory.getRange(ssHistory.getLastRow(), 12).getDisplayValue();
         Logger.log("plainText is " + plainText);
         ssHistory.getRange(ssHistory.getLastRow(), 12).clear();
         ssHistory.getRange(ssHistory.getLastRow(), 12).setValue(plainText);
+        
+        //Only send full time employees
+        if (ssHistory.getRange(ssHistory.getLastRow(), 5).getDisplayValue() == "SHRA Permanent" ||            
+              ssHistory.getRange(ssHistory.getLastRow(), 5).getDisplayValue() == "EHRA Staff"|| 
+                ssHistory.getRange(ssHistory.getLastRow(), 5).getDisplayValue() == "EHRA 9 Month Faculty"|| 
+                  ssHistory.getRange(ssHistory.getLastRow(), 5).getDisplayValue() == "EHRA 12 Month Faculty"){
+                    //push this row to array for email to Alex
+                    rowArray.push(ssHistory.getRange(ssHistory.getLastRow(),1,1,12).getValues()); 
+                  }
       }
     }
   }
@@ -447,104 +473,113 @@ function update(){
         ssHistory.getRange(ssHistory.getLastRow(), 10).setValue('Employee Left');
         ssHistory.getRange(ssHistory.getLastRow(), 11).setValue(email_date);
         ssHistory.getRange(1, 12).copyTo(ssHistory.getRange(ssHistory.getLastRow(), 12));
+        
         //Get employee's position number, paste as plain text
         plainText = ssHistory.getRange(ssHistory.getLastRow(), 12).getDisplayValue();
         Logger.log("plainText is " + plainText);
         ssHistory.getRange(ssHistory.getLastRow(), 12).clear();
         ssHistory.getRange(ssHistory.getLastRow(), 12).setValue(plainText);
+        
+        //Only send full time employees
+        if (ssHistory.getRange(ssHistory.getLastRow(), 5).getDisplayValue() == "SHRA Permanent" ||            
+              ssHistory.getRange(ssHistory.getLastRow(), 5).getDisplayValue() == "EHRA Staff"|| 
+                ssHistory.getRange(ssHistory.getLastRow(), 5).getDisplayValue() == "EHRA 9 Month Faculty"|| 
+                  ssHistory.getRange(ssHistory.getLastRow(), 5).getDisplayValue() == "EHRA 12 Month Faculty"){
+                    //push this row to array for email to Alex
+                    rowArray.push(ssHistory.getRange(ssHistory.getLastRow(),1,1,12).getValues()); 
+                  }
       }
     }
   }
   SpreadsheetApp.flush();
   MailApp.sendEmail({to:'rmccal14+logger@uncc.edu',subject: "FS Banner Log!",body: Logger.getLog()});
-  
-  //!!!!--------------------------------------------------!!!!!
+  getHtmlTable(rowArray);  
   
 }
 //*******************************************************************************************************************
 //*******************************************************************************************************************
 //Append all changes to History sheet
 
-function updateNewEmployees(){
-  
-  // source doc
-  var ssFS_Banner = SpreadsheetApp.getActiveSpreadsheet();
-  
-  // source sheets
-  var ssNew = ssFS_Banner.getSheetByName('CLAS New Employee Status Change');  
-  var ssDept = ssFS_Banner.getSheetByName('Department Change');
-  var ssFormer = ssFS_Banner.getSheetByName('CLAS Former Employee Status Change'); 
-  var ssHistory = ssFS_Banner.getSheetByName('History');  
-  var sheetCE = ssFS_Banner.getSheetByName('Current_Employees');
-  
-  //Delete empty rows and columns so the iterators below won't get hung (plus for better visibility)
-  //ssFS_Banner.toast('Deleting empty cells...', 'First the columns, then the rows', 5);
-  ssFS_Banner.toast('Deleting empty cells...', 'Only deleting the rows, 10 second countdown', 5);
-  Utilities.sleep(10000);// pause for 10 seconds, troubleshooting why update() is inaccurate within function but works by itself
-  //removeEmptyColumns();
-  removeEmptyRows();
-  
-  // Get full range of data
-  var lastRow = ssNew.getLastRow();
-  var lastColumn = ssNew.getLastColumn();
-  var lastRow2 = ssDept.getLastRow();
-  var lastColumn2 = ssDept.getLastColumn();
-  var lastRow3 = ssFormer.getLastRow();
-  var lastColumn3 = ssFormer.getLastColumn();
-  Logger.log("lastRow is " + lastRow);
-  Logger.log("lastCol is " + lastColumn);
-  
-  var SRangeNew = ssNew.getRange(3,1,lastRow,lastColumn);
-  var SRangeDept = ssDept.getRange(3,1,lastRow2,lastColumn2);
-  var SRangeHistory = ssFormer.getRange(3,1,lastRow3,lastColumn3);
-  
-  // get the data values in range
-  var sDataNew = SRangeNew.getValues();
-  var sDataDept = SRangeDept.getValues();
-  var sDataFormer = SRangeHistory.getValues();
-  var email_date = sheetCE.getRange(1, 1).getDisplayValue();  
-  var plainText;
-  
-  //!!!!--------------------------------------------------!!!!!
-  //Adds the changes per category, filters by rows with '@' in them which should be all employees (email addresses), skips blank rows  
-  ssFS_Banner.toast('Updating Change Log...', 'Appending employees with modified statuses to History sheet', 10);
-  for (var i = 0; i < sDataNew.length; i++){
-    if (sDataNew.join('').indexOf('@') > 0){
-      if (sDataNew[i].join('').indexOf('@') > 0){
-        ssHistory.appendRow(sDataNew[i]);
-        ssHistory.getRange(ssHistory.getLastRow(), 10).setValue('New Employee');
-        ssHistory.getRange(ssHistory.getLastRow(), 11).setValue(email_date); 
-        ssHistory.getRange(1, 12).copyTo(ssHistory.getRange(ssHistory.getLastRow(), 12));
-        //Get employee's position number, paste as plain text
-        plainText = ssHistory.getRange(ssHistory.getLastRow(), 12).getDisplayValue();
-        Logger.log("plainText is " + plainText);
-        ssHistory.getRange(ssHistory.getLastRow(), 12).clear();
-        ssHistory.getRange(ssHistory.getLastRow(), 12).setValue(plainText);
-      }
-    }
-  }
+/*function updateNewEmployees(){
+
+// source doc
+var ssFS_Banner = SpreadsheetApp.getActiveSpreadsheet();
+
+// source sheets
+var ssNew = ssFS_Banner.getSheetByName('CLAS New Employee Status Change');  
+var ssDept = ssFS_Banner.getSheetByName('Department Change');
+var ssFormer = ssFS_Banner.getSheetByName('CLAS Former Employee Status Change'); 
+var ssHistory = ssFS_Banner.getSheetByName('History');  
+var sheetCE = ssFS_Banner.getSheetByName('Current_Employees');
+
+//Delete empty rows and columns so the iterators below won't get hung (plus for better visibility)
+//ssFS_Banner.toast('Deleting empty cells...', 'First the columns, then the rows', 5);
+ssFS_Banner.toast('Deleting empty cells...', 'Only deleting the rows, 10 second countdown', 5);
+Utilities.sleep(10000);// pause for 10 seconds, troubleshooting why update() is inaccurate within function but works by itself
+//removeEmptyColumns();
+removeEmptyRows();
+
+// Get full range of data
+var lastRow = ssNew.getLastRow();
+var lastColumn = ssNew.getLastColumn();
+var lastRow2 = ssDept.getLastRow();
+var lastColumn2 = ssDept.getLastColumn();
+var lastRow3 = ssFormer.getLastRow();
+var lastColumn3 = ssFormer.getLastColumn();
+Logger.log("lastRow is " + lastRow);
+Logger.log("lastCol is " + lastColumn);
+
+var SRangeNew = ssNew.getRange(3,1,lastRow,lastColumn);
+var SRangeDept = ssDept.getRange(3,1,lastRow2,lastColumn2);
+var SRangeHistory = ssFormer.getRange(3,1,lastRow3,lastColumn3);
+
+// get the data values in range
+var sDataNew = SRangeNew.getValues();
+var sDataDept = SRangeDept.getValues();
+var sDataFormer = SRangeHistory.getValues();
+var email_date = sheetCE.getRange(1, 1).getDisplayValue();  
+var plainText;
+
+//!!!!--------------------------------------------------!!!!!
+//Adds the changes per category, filters by rows with '@' in them which should be all employees (email addresses), skips blank rows  
+ssFS_Banner.toast('Updating Change Log...', 'Appending employees with modified statuses to History sheet', 10);
+for (var i = 0; i < sDataNew.length; i++){
+if (sDataNew.join('').indexOf('@') > 0){
+if (sDataNew[i].join('').indexOf('@') > 0){
+ssHistory.appendRow(sDataNew[i]);
+ssHistory.getRange(ssHistory.getLastRow(), 10).setValue('New Employee');
+ssHistory.getRange(ssHistory.getLastRow(), 11).setValue(email_date); 
+ssHistory.getRange(1, 12).copyTo(ssHistory.getRange(ssHistory.getLastRow(), 12));
+//Get employee's position number, paste as plain text
+plainText = ssHistory.getRange(ssHistory.getLastRow(), 12).getDisplayValue();
+Logger.log("plainText position number is " + plainText);
+ssHistory.getRange(ssHistory.getLastRow(), 12).clear();
+ssHistory.getRange(ssHistory.getLastRow(), 12).setValue(plainText);
+}
+}
+}
 
 SpreadsheetApp.flush();
 
 for (var i = 0; i < sDataDept.length; i++){
-  if (sDataDept.join('').indexOf('@') > 0){
-    if (sDataDept[i].join('').indexOf('@') > 0){
-      ssHistory.appendRow(sDataDept[i]);
-      ssHistory.getRange(ssHistory.getLastRow(), 10).setValue('Employee Changed Departments');
-      ssHistory.getRange(ssHistory.getLastRow(), 11).setValue(email_date);
-      ssHistory.getRange(1, 12).copyTo(ssHistory.getRange(ssHistory.getLastRow(), 12));
-      //Get employee's position number, paste as plain text
-      plainText = ssHistory.getRange(ssHistory.getLastRow(), 12).getDisplayValue();
-      Logger.log("plainText is " + plainText);
-      ssHistory.getRange(ssHistory.getLastRow(), 12).clear();
-      ssHistory.getRange(ssHistory.getLastRow(), 12).setValue(plainText);
-    }
-  }
+if (sDataDept.join('').indexOf('@') > 0){
+if (sDataDept[i].join('').indexOf('@') > 0){
+ssHistory.appendRow(sDataDept[i]);
+ssHistory.getRange(ssHistory.getLastRow(), 10).setValue('Employee Changed Departments');
+ssHistory.getRange(ssHistory.getLastRow(), 11).setValue(email_date);
+ssHistory.getRange(1, 12).copyTo(ssHistory.getRange(ssHistory.getLastRow(), 12));
+//Get employee's position number, paste as plain text
+plainText = ssHistory.getRange(ssHistory.getLastRow(), 12).getDisplayValue();
+Logger.log("plainText position number is " + plainText);
+ssHistory.getRange(ssHistory.getLastRow(), 12).clear();
+ssHistory.getRange(ssHistory.getLastRow(), 12).setValue(plainText);
+}
+}
 }
 
 SpreadsheetApp.flush();
 
-}
+}*/
 //*******************************************************************************************************************
 //*******************************************************************************************************************
 
@@ -584,4 +619,113 @@ function removeEmptyRows() {
 
 //*******************************************************************************************************************
 //*******************************************************************************************************************
+//Return latest date for sheet
+
+function statusDate(){
+  //Initialize values
+  var ssHistory = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('History'); //Our Change Log sheet
+  var dates = ssHistory.getRange(3, 11, ssHistory.getLastRow()).getValues(); //Our dates from the Change Log
+  var newDates = [];
+  var rowArray = [];
+  var indexes = [];
+  
+  dates.forEach(function (dateValue){
+    //convert dates to numbers
+    var dt = Number(new Date(dateValue));
+    //push numbers to new array
+    newDates.push(dt);
+  });
+  
+  //return the largest number, which is the latest date
+  var maxDateNum = newDates.sort(function(a, b){return b-a})[0];
+  //convert largest number back to date
+  var maxDate = Utilities.formatDate(new Date(+maxDateNum),'America/New_York', 'M/d/y');
+  Logger.log("newDates sort value;"+maxDate);
+  
+  return maxDate;
+  
+  //get header row
+  //rowArray.push(ssHistory.getRange(2,1,1,12).getValues()); 
+  //Create new array where the date matches the latest  
+  var newestValues = ssHistory.getRange(3, 1, ssHistory.getLastRow(), 12).getValues();  
+  for (var y=0;y<newestValues.length;y++){
+    if (ssHistory.getRange(y, 11,ssHistory.getLastRow()).getDisplayValue() == maxDate){
+      Logger.log("Latest data, push "+y+" to array");
+      indexes.push(y);      
+    }    
+    rowArray = newestValues.filter(function(value){
+      //Logger.log("newestValues: "+value[10]);
+      //return String(Utilities.formatDate(new Date(value[10]),'America/New_York', 'M/d/y')) == String(maxDate);
+    });
+  }
+  Logger.log("rowArray: "+rowArray);
+  Logger.log(String(Utilities.formatDate(new Date(newestValues[dates.length][10]),'America/New_York', 'M/d/y')));
+  Logger.log(String(maxDate));
+  
+  //Logger.log("mod date:" + Utilities.formatDate(new Date(newestValues[5][10]),'America/New_York', 'M/d/y'));
+  
+  
+  //Push rows to array
+  for (var x=3;x<=ssHistory.getLastRow();x++){
+    //Push a row if it has the latest data    
+    if (ssHistory.getRange(x, 11) == maxDate){
+      Logger.log("Latest data, push to array");
+      rowArray.push(ssHistory.getRange(x,1,1,12).getValues());
+    }
+  }
+  
+  Logger.log(rowArray.join("\n\n\n"));
+  
+  //getHTMLTable(range);  
+  
+}
 //*******************************************************************************************************************
+//https://stackoverflow.com/questions/47364627/app-script-send-filtered-table-as-html-in-email
+function getHtmlTable(range){  
+  
+  var range = range || SpreadsheetApp.getActiveSpreadsheet().getSheetByName("History").getRange(2,1,1,12).getValues() || ["c","d"];
+  //var range = range/* || rowArray || [["a","b"],["c","d"]]*/;
+  if (range.length < 2){
+   Logger.log("Not enough entries, do not email HTML table");
+    return;
+  }
+  Logger.log("Running script");
+  
+  var ssFS_Banner = SpreadsheetApp.getActiveSpreadsheet();
+  var ssHistory = ssFS_Banner.getSheetByName('History');  
+  var rowArray = [];
+  //rowArray.push(ssHistory.getRange(2,1,1,12).getValues()); //get header row for email to Alex
+  //rowArray.push(ssHistory.getRange(ssHistory.getLastRow(),1,1,12).getValues());  
+  
+  // Build HTML Table, with inline styling for each cell
+  var tableFormat = 'style="border:1px solid black;border-collapse:collapse;text-align:center" border = 1 cellpadding = 5';
+  var html = ['<table '+tableFormat+'>'];
+  
+  // Column widths appear outside of table rows
+  for (var col=0;col<12;col++) {
+    html.push('<col width="'+130+'">');
+  }
+  
+  // Populate rows
+  for (var row=0;row<range.length;row++) {    
+    //Create new row
+    html.push('<tr height="'+20+'">');
+    //Split row data into array
+    var data = range[row].toString().split(",");
+    
+    //parse second array's data to fill columns
+    for (var q=0;q<data.length;q++){     
+      // Get formatted data
+      var cellText = data[q];
+      //push formatted data
+      html.push('<td >'+cellText+'</td>');
+    }
+    //close row
+    html.push('</tr>');
+  }
+  //close table
+  html.push('</table>');
+  
+  //Send HTML-formatted table using Gmail
+  MailApp.sendEmail({to:'achapin1@uncc.edu,rmccal14+logger@uncc.edu',subject: "F/S Banner Log Changes", htmlBody: html.join('')});  
+}
